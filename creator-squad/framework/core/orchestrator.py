@@ -1,9 +1,11 @@
 from __future__ import annotations
+import json
 import sys
 from pathlib import Path
 from .state import BlackboardState
-from .handoff import HandoffMessage, HandoffQueue, AGENT_ORDER
+from .handoff import AGENT_ORDER
 from .runner import AgentRunner
+from ..schemas.agent_spec import AgentSpecification
 
 AGENTS_DIR = Path(__file__).parent.parent / "agents"
 
@@ -45,7 +47,6 @@ class CreatorSquadOrchestrator:
 
     def __init__(self, verbose: bool = True) -> None:
         self.verbose = verbose
-        self.queue = HandoffQueue()
         self.state: BlackboardState | None = None
 
     def run(self, task: str) -> BlackboardState:
@@ -69,8 +70,19 @@ class CreatorSquadOrchestrator:
 
         self.state.phase = "complete"
         self.state.current_agent = "done"
+        self._validate_spec()
         self._print_summary()
         return self.state
+
+    def _validate_spec(self) -> None:
+        raw = self.state.get_artifact("agent_spec.json")
+        if not raw:
+            return
+        try:
+            AgentSpecification.model_validate_json(raw)
+            self._log("  ✓ agent_spec.json validated against AgentSpecification schema")
+        except Exception as e:
+            self._log(f"  ⚠ agent_spec.json schema warning: {e}")
 
     def _log(self, msg: str) -> None:
         if self.verbose:

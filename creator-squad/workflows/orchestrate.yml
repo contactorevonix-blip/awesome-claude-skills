@@ -1,0 +1,41 @@
+name: Creator Squad — Build Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'What agent do you want to build? (e.g. "Build an agent that reviews pull requests")'
+        required: true
+        type: string
+
+jobs:
+  build-agent:
+    name: Run Creator Squad
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install anthropic pydantic httpx
+
+      - name: Run Creator Squad
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m framework.core.orchestrator "${{ inputs.task }}"
+        working-directory: creator-squad
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-agent-${{ github.run_id }}
+          path: creator-squad/output/
+          retention-days: 30
